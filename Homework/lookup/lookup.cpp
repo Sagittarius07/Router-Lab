@@ -7,18 +7,18 @@
 std::vector<RoutingTableEntry> RoutingTable;
 
 bool prefix_match(const in6_addr addr, const in6_addr prefix, uint32_t len) {
-  for (int i = 0; i < len / 8; i++) {
-    if (addr.s6_addr[i] != prefix.s6_addr[i]) {
-      return false;
+    for (int i = 0; i < len / 8; i++) {
+        if (addr.s6_addr[i] != prefix.s6_addr[i]) {
+            return false;
+        }
     }
-  }
-  if (len % 8) {
-    uint8_t mask = 0xff << (8 - len % 8);
-    if ((addr.s6_addr[len / 8] & mask) != (prefix.s6_addr[len / 8] & mask)) {
-      return false;
+    if (len % 8) {
+        uint8_t mask = 0xff << (8 - len % 8);
+        if ((addr.s6_addr[len / 8] & mask) != (prefix.s6_addr[len / 8] & mask)) {
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 }
 
 
@@ -63,30 +63,32 @@ bool prefix_query(const in6_addr addr, in6_addr *nexthop, uint32_t *if_index) {
 }
 
 
+
 int mask_to_len(const in6_addr mask) {
-  int len = 0;
-  for (int i = 0; i < 16; i++) {
-    uint8_t byte = mask.s6_addr[i];
-    if (byte == 0xff) {
-      len += 8;
-    } else if (byte == 0x00) {
-      continue;
-    } else {
-      for (int j = 7; j >= 0; j--) {
-        if (byte & (1 << j)) {
-          len++;
+    int len = 0;
+    for (int i = 0; i < 16; i++) {
+        uint8_t byte = mask.s6_addr[i];
+        if (byte == 0xff) {
+            len += 8;
+        } else if (byte == 0x00) {
+            break;
         } else {
-          for (int k = j - 1; k >= 0; k--) {
-            if (byte & (1 << k)) {
-              return -1;
+            for (int j = 7; j >= 0; j--) {
+                if (byte & (1 << j)) {
+                    len++;
+                } else {
+                    for (int k = j - 1; k >= 0; k--) {
+                        if (byte & (1 << k)) {
+                            return -1;
+                        }
+                    }
+                    break;
+                }
             }
-          }
-          break;
+            break;
         }
-      }
     }
-  }
-  return len;
+    return len;
 }
 
 in6_addr len_to_mask(int len) {

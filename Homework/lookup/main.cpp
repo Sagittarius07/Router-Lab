@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
         RoutingTableEntry entry = {
             .addr = addr, .len = len, .if_index = if_index, .nexthop = nexthop};
         update(true, entry);
+        printf(RoutingTable[0].addr);
       }
     } else if (buffer[0] == 'D') {
       sscanf(buffer, "%c%s%d", &tmp, addr_buffer, &len);
