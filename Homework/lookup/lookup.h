@@ -38,8 +38,6 @@ typedef struct {
   // metric
 } RoutingTableEntry;
 
-std::vector<RoutingTableEntry> RoutingTable;
-
 /**
  * @brief 插入/删除一条路由表表项
  * @param insert 如果要插入则为 true ，要删除则为 false

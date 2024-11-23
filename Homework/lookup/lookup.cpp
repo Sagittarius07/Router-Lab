@@ -7,6 +7,7 @@
 std::vector<RoutingTableEntry> RoutingTable;
 
 bool prefix_match(const in6_addr addr, const in6_addr prefix, uint32_t len) {
+
     for (int i = 0; i < len / 8; i++) {
         if (addr.s6_addr[i] != prefix.s6_addr[i]) {
             return false;
@@ -46,13 +47,13 @@ void update(bool insert, const RoutingTableEntry entry) {
 bool prefix_query(const in6_addr addr, in6_addr *nexthop, uint32_t *if_index) {
   // TODO
   if (!nexthop || !if_index) {
-    return false;  // 避免空指针操作
+    return false; 
   }
 
   int max_len = -1;
   for (int i = 0; i < RoutingTable.size(); i++) {
     if (prefix_match(addr, RoutingTable[i].addr, RoutingTable[i].len)) {
-      if (RoutingTable[i].len > max_len) {
+      if (int(RoutingTable[i].len) > max_len) {
         max_len = RoutingTable[i].len;
         *nexthop = RoutingTable[i].nexthop;
         *if_index = RoutingTable[i].if_index;
