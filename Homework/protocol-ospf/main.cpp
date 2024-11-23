@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
     } else if (res < 0) {
       return res;
     }
+
     const uint8_t *lsa_start;
     int lsa_num;
     OspfErrorCode err = parse_ip(packet, res, &lsa_start, &lsa_num);
@@ -38,6 +39,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     res -= (lsa_start - packet);
+
     for (int i = 0; i < lsa_num; i++) {
       uint16_t lsa_len;
       RouterLsa lsa;
@@ -60,6 +62,7 @@ int main(int argc, char *argv[]) {
       } else if (err == ERR_LSA_NOT_ROUTER) {
         printf("Other LSA: %u\n", lsa_len);
       } else if (err == ERR_PACKET_TOO_SHORT) {
+        printf("1");
         printf("Error: %s\n", ospf_error_to_string(err));
         break;
       } else {

@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stdio.h>
+
 const uint32_t IPV6_HEADER_LEN = 40;
 const uint32_t OSPF_HEADER_LEN = 16;
 const uint32_t OSPF_LSU_HEADER_LEN = 4;
@@ -39,7 +41,7 @@ OspfErrorCode parse_ip(const uint8_t *packet, uint32_t len,
     return OspfErrorCode::ERR_BAD_LENGTH;
   }
 
-  if(ospf_header[4] != OspfType::OSPF_LSU){
+  if(ospf_header[1] != OspfType::OSPF_LSU){
     return OspfErrorCode::ERR_OSPF_NOT_LSU;
   }
 
@@ -48,7 +50,7 @@ OspfErrorCode parse_ip(const uint8_t *packet, uint32_t len,
   }
 
   *lsa_start = packet + IPV6_HEADER_LEN + OSPF_HEADER_LEN + OSPF_LSU_HEADER_LEN;
-  *lsa_num = (* (uint32_t *)(ospf_header + OSPF_HEADER_LEN));
+  *lsa_num = ntohl((* (uint32_t *)(ospf_header + OSPF_HEADER_LEN)));
   return OspfErrorCode::SUCCESS;
 }
 
@@ -58,7 +60,6 @@ OspfErrorCode disassemble(const uint8_t *lsa, uint16_t buf_len, uint16_t *len,
   if(buf_len < OSPF_LSA_HEADER_LEN){
     return OspfErrorCode::ERR_PACKET_TOO_SHORT;
   }
-
   uint16_t lsa_len = ntohs(*(uint16_t *)(lsa + 18));
   if(buf_len < lsa_len){
     return OspfErrorCode::ERR_PACKET_TOO_SHORT;
@@ -73,13 +74,14 @@ OspfErrorCode disassemble(const uint8_t *lsa, uint16_t buf_len, uint16_t *len,
   if(ntohs(header->ls_age) > LSA_MAX_AGE){
     return OspfErrorCode::ERR_LS_AGE;
   }
-  if(ntohs(header->ls_sequence_number) != RESERVED_LS_SEQ){
+  if(ntohs(header->ls_sequence_number) == RESERVED_LS_SEQ){
     return OspfErrorCode::ERR_LS_SEQ;
   }
-  if(ntohs((header->ls_type & 0x1FFF)) != OSPF_ROUTER_LSA){
+  if((ntohs(header->ls_type) & 0x1FFF) != OSPF_ROUTER_LSA){
     return OspfErrorCode::ERR_LSA_NOT_ROUTER;
   }
-  if((lsa_len - 4 - OSPF_HEADER_LEN - OSPF_LSA_HEADER_LEN) % OSPF_ROUTER_LSA_ENTRY_LEN != 0){
+  uint16_t entry_len = lsa_len - 4 - OSPF_LSA_HEADER_LEN;
+  if((entry_len) % OSPF_ROUTER_LSA_ENTRY_LEN != 0){
     return OspfErrorCode::ERR_ROUTER_LSA_INCOMPLETE_ENTRY;
   }
 
@@ -90,24 +92,33 @@ OspfErrorCode disassemble(const uint8_t *lsa, uint16_t buf_len, uint16_t *len,
   output->flags = lsa[8];
   output->zero = lsa[9];
   output->options = ntohs(*(uint16_t *)(lsa + 10));
-  
-  uint8_t *entry = (uint8_t *)(lsa + OSPF_LSA_HEADER_LEN + OSPF_HEADER_LEN + 4);
-  uint16_t entry_num = (lsa_len - 4 - OSPF_HEADER_LEN - OSPF_LSA_HEADER_LEN) / OSPF_ROUTER_LSA_ENTRY_LEN;
-  for(uint16_t i = 0; i < entry_num; i++){
-    if(entry[0] < 1 || entry[0] > 4){
-      return OspfErrorCode::ERR_ROUTER_LSA_ENTRY_TYPE;
-    }
-    if(entry[1] != 0){
-      return OspfErrorCode::ERR_BAD_ZERO;
-    }
-    
-    output->entries[i].type = entry[0];
-    output->entries[i].metric = ntohs(*(uint16_t *)(entry + 2));
-    output->entries[i].interface_id = ntohl(*(uint32_t *)(entry + 4));
-    output->entries[i].neighbor_interface_id = ntohl(*(uint32_t *)(entry + 8));
-    output->entries[i].neighbor_router_id = ntohl(*(uint32_t *)(entry + 12));
-    entry += OSPF_ROUTER_LSA_ENTRY_LEN;
-  }
 
+
+  if(entry_len){
+    uint8_t *entry = (uint8_t *)(lsa + OSPF_LSA_HEADER_LEN + 4);
+    uint16_t entry_num = entry_len / OSPF_ROUTER_LSA_ENTRY_LEN;
+    int i = 0;
+
+    //当entry不为空且i小于entry_num时
+    while(i < entry_num){
+      if(entry[0] < 1 || entry[0] > 4){
+        return OspfErrorCode::ERR_ROUTER_LSA_ENTRY_TYPE;
+      }
+      if(entry[1] != 0){
+        return OspfErrorCode::ERR_BAD_ZERO;
+      }
+
+      RouterLsaEntry temp_entry;
+      temp_entry.type = entry[0];
+      temp_entry.metric = ntohs(*(uint16_t *)(entry + 2));
+      temp_entry.interface_id = ntohl(*(uint32_t *)(entry + 4));
+      temp_entry.neighbor_interface_id = ntohl(*(uint32_t *)(entry + 8));
+      temp_entry.neighbor_router_id = ntohl(*(uint32_t *)(entry + 12));
+      output->entries.push_back(temp_entry);
+
+      i++;
+      entry += OSPF_ROUTER_LSA_ENTRY_LEN; 
+    }
+  }
   return OspfErrorCode::SUCCESS;
 }

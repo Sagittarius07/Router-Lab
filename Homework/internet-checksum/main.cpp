@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
     } else if (res < 0) {
       return res;
     }
+
     bool correct = validateAndFillChecksum(packet, res);
     printf("%s\n", correct ? "Yes" : "No");
     for (int i = 0;i < res;i++) {
